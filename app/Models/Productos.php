@@ -12,6 +12,7 @@ class Productos extends Model
     protected $table = 'Productos';
 
     protected $fillable = [
+        'grupo_id',
         'cat',
         'nombre',
         'descripcion',
@@ -19,4 +20,9 @@ class Productos extends Model
         'marca',
         'completed',
     ];
+
+    public function grupo()
+    {
+        return $this->belongsTo(Grupos::class, 'grupo_id');
+    }
 }
