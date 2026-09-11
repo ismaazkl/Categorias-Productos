@@ -61,7 +61,16 @@ class GruposController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $grupo = Grupos::findOrFail($id);
+
+        $validated = $request->validate([
+            'grupo' => 'required|string|max:255',
+            'descripcion' => 'nullable|string',
+        ]);
+
+        $grupo->update($validated);
+
+        return redirect()->route('grupos.index');
     }
 
     /**
@@ -69,6 +78,9 @@ class GruposController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $grupo = Grupos::findOrFail($id);
+        $grupo->delete();
+
+        return redirect()->route('grupos.index');
     }
 }

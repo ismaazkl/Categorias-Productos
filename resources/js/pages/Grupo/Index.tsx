@@ -1,5 +1,5 @@
 import AppLayout from '@/layouts/app-layout';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, router } from '@inertiajs/react';
 import { useState } from 'react';
 
 interface Grupo {
@@ -10,8 +10,9 @@ interface Grupo {
 
 export default function Index({ grupos }: { grupos: Grupo[] }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingGrupo, setEditingGrupo] = useState<Grupo | null>(null);
 
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const { data, setData, post, put, processing, errors, reset } = useForm({
         grupo: '',
         descripcion: '',
     });
@@ -26,6 +27,31 @@ export default function Index({ grupos }: { grupos: Grupo[] }) {
                 setIsModalOpen(false);
             },
         });
+    };
+
+    const handleEdit = (grupo: Grupo) => {
+        setEditingGrupo(grupo);
+        setData({
+            grupo: grupo.grupo,
+            descripcion: grupo.descripcion || '',
+        });
+    };
+
+    const handleUpdate = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingGrupo) return;
+        put(`/grupos/${editingGrupo.id}`, {
+            onSuccess: () => {
+                reset();
+                setEditingGrupo(null);
+            },
+        });
+    };
+
+    const handleDelete = (id: number) => {
+        if (confirm('¿Estás seguro de que deseas eliminar este grupo?')) {
+            router.delete(`/grupos/${id}`);
+        }
     };
 
     return (
@@ -58,6 +84,7 @@ export default function Index({ grupos }: { grupos: Grupo[] }) {
                                 <th className="p-4">ID</th>
                                 <th className="p-4">Nombre</th>
                                 <th className="p-4">Descripción</th>
+                                <th className="p-4 text-right">Acciones</th>
                             </tr>
                         </thead>
 
@@ -68,6 +95,20 @@ export default function Index({ grupos }: { grupos: Grupo[] }) {
                                         <td className="p-4 font-mono text-gray-500">#{grupo.id}</td>
                                         <td className="p-4 font-medium text-gray-900">{grupo.grupo}</td>
                                         <td className="p-4 text-gray-700">{grupo.descripcion || 'Sin descripción'}</td>
+                                        <td className="p-4 text-right gap-2 flex justify-end">
+                                            <button
+                                                onClick={() => handleEdit(grupo)}
+                                                className="px-3 py-1 bg-amber-500 text-white rounded hover:bg-amber-600 text-sm"
+                                            >
+                                                Editar
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(grupo.id)}
+                                                className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                                            >
+                                                Eliminar
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))
                             ) : (
@@ -136,6 +177,61 @@ export default function Index({ grupos }: { grupos: Grupo[] }) {
                                     className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     {processing ? 'Guardando...' : 'Guardar'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            
+            {editingGrupo && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="w-full max-w-md bg-white p-6 rounded-xl shadow-xl">
+                        <h2 className="text-lg font-bold mb-4">Editar Grupo #{editingGrupo.id}</h2>
+                        <form onSubmit={handleUpdate} className="flex flex-col gap-4">
+                            <div>
+                                <label className="block text-sm font-medium">Nombre</label>
+                                <input
+                                    type="text"
+                                    value={data.grupo}
+                                    onChange={(e) => setData('grupo', e.target.value)}
+                                    className="w-full rounded border p-2 text-sm"
+                                    required
+                                />
+                                {errors.grupo && (
+                                    <span className="mt-1 block text-xs text-red-500">{errors.grupo}</span>
+                                )}
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium">Descripción</label>
+                                <textarea
+                                    value={data.descripcion}
+                                    onChange={(e) => setData('descripcion', e.target.value)}
+                                    className="w-full rounded border p-2 text-sm"
+                                    rows={3}
+                                />
+                                {errors.descripcion && (
+                                    <span className="mt-1 block text-xs text-red-500">{errors.descripcion}</span>
+                                )}
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setEditingGrupo(null);
+                                        reset();
+                                    }}
+                                    className="px-4 py-2 border rounded text-sm"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="px-4 py-2 bg-amber-500 text-white rounded text-sm hover:bg-amber-600"
+                                >
+                                    Actualizar
                                 </button>
                             </div>
                         </form>
