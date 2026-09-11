@@ -7,6 +7,7 @@ use App\Models\Productos;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 
 class CategoriasController extends Controller
@@ -19,13 +20,6 @@ class CategoriasController extends Controller
         return Inertia::render('Categorias/Index', [
             'productos' => Productos::with('grupo')->latest()->get(),
             'grupos' => Grupos::orderBy('grupo')->get(),
-            'categorias' => Grupos::orderBy('grupo')->get()->map(function ($g) {
-                return [
-                    'id' => $g->id,
-                    'nombre' => $g->grupo,
-                    'descripcion' => $g->descripcion,
-                ];
-            })->values(),
         ]);
     }
 
@@ -69,37 +63,36 @@ class CategoriasController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
-    {
-        //
-    }
-
+    
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
-    {
-        
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, string $id)
     {
-        // Actualiza un grupo (tratado aquí como "categoría")
-        $grupo = Grupos::findOrFail($id);
+        $producto = Productos::findOrFail($id);
         $validated = $request->validate([
-            'nombre' => 'required|string|max:255',
-            'descripcion' => 'nullable|string',
+            'grupo_id' => ['nullable', 'exists:grupos,id'],
+            'cat' => ['nullable', 'string', 'max:255'],
+            'nombre' => ['required', 'string', 'max:255'],
+            'descripcion' => ['nullable', 'string'],
+            'precio' => ['nullable', 'numeric', 'min:0'],
+            'marca' => ['nullable', 'string', 'max:255'],
+            'completed' => ['boolean'],
         ]);
 
-        $grupo->update([
-            'grupo' => $validated['nombre'],
-            'descripcion' => $validated['descripcion'] ?? null,
-        ]);
+        if (empty($validated['cat']) && !empty($validated['grupo_id'])) {
+            $grupo = Grupos::find($validated['grupo_id']);
+            $validated['cat'] = $grupo?->grupo ?? '';
+        }
 
-        return redirect()->route('categorias.index');
+        if (empty($validated['cat'])) {
+            $validated['cat'] = '';
+        }
+
+        $producto->update($validated);
+
+        return redirect()->route('categorias.index')
+            ->with('success', 'Producto actualizado correctamente.');
     }
 
     /**
@@ -107,9 +100,30 @@ class CategoriasController extends Controller
      */
     public function destroy(string $id)
     {
-    // Elimina un grupo (tratado como categoría)
-    $grupo = Grupos::findOrFail($id);
-    $grupo->delete();
-    return redirect()->route('categorias.index');
+        $producto = Productos::findOrFail($id);
+        $producto->delete();
+
+        return redirect()->route('categorias.index')
+            ->with('success', 'Producto eliminado correctamente.');
     }
+    public function generarPdf()
+    {
+        $productos = Productos::with('grupo')->latest()->get();
+        
+        $totalProducto = $productos->count();
+        $precioPromedio = $productos->avg('precio');
+        $precioTotal = $productos->sum('precio');
+        
+        $totalProducto = $totalProducto + $precioPromedio;
+        $pdf = Pdf::loadView('pdf.productos', compact(
+            'productos',
+            'totalProducto',
+            'precioPromedio',
+            'precioTotal',
+
+        ));
+        // Descargar PDF
+        return $pdf->download('reporte_productos_' . date('Y-m-d') . '.pdf');
+    }
+
 }
